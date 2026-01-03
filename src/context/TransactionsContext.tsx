@@ -17,7 +17,7 @@ export interface Transaction {
   amount: number
   type: string
   category_name: string
-  due_date: string // Vem do banco como "YYYY-MM-DD"
+  due_date: string
   payment_date: string | null
   category_id: number
   installment_current?: number
@@ -53,6 +53,13 @@ export const CATEGORY_IDS: Record<string, number> = {
   Investimento: 14,
 }
 
+interface AddFixedExpenseData {
+  group: BudgetGroup
+  name: string
+  amount: number
+  day: number
+}
+
 interface TransactionsContextType {
   transactions: Transaction[]
   summary: {
@@ -66,6 +73,7 @@ interface TransactionsContextType {
   toggleTransactionStatus: (transaction: Transaction) => Promise<void>
   getSalaryForGroup: (group: BudgetGroup) => number
   upsertSalary: (group: BudgetGroup, amount: number) => Promise<void>
+  addFixedExpense: (data: AddFixedExpenseData) => Promise<void>
   isLoading: boolean
 }
 
@@ -93,51 +101,39 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     fetchTransactions()
   }, [fetchTransactions])
 
-  // --- HELPER: Parse seguro de data do banco (YYYY-MM-DD) ---
   const parseDateBr = (dateString: string) => {
     if (!dateString) return { month: -1, year: -1, day: -1 }
-    // Quebra a string "2026-01-02" em partes numéricas
-    // Isso evita qualquer conversão automática de timezone do JS
     const [yearStr, monthStr, dayStr] = dateString.split('T')[0].split('-')
     return {
       year: Number(yearStr),
-      month: Number(monthStr) - 1, // JS meses são 0-11
+      month: Number(monthStr) - 1,
       day: Number(dayStr),
     }
   }
 
-  // --- LÓGICA DE SALDO (DASHBOARD) ---
   const summary = transactions.reduce(
     (acc, t) => {
       const amount = Number(t.amount)
       const isPaid = !!t.payment_date
       const type = t.type?.toUpperCase()
-
       if (!isPaid) return acc
-
       if (type === 'INCOME') {
         acc.income += amount
         acc.total += amount
       } else {
         acc.expenses += amount
         acc.total -= amount
-        if (t.category_name === 'Investimento') {
-          acc.investments += amount
-        }
+        if (t.category_name === 'Investimento') acc.investments += amount
       }
       return acc
     },
     { income: 0, expenses: 0, total: 0, investments: 0 }
   )
 
-  // --- CREATE (Com ajuste de fuso horário) ---
   async function createTransaction(data: CreateTransactionDTO) {
-    // Adiciona T12:00:00 para garantir que o backend salve no dia correto
-    // independente do fuso horário do servidor
     const safeDate = data.dueDate.includes('T')
       ? data.dueDate
       : `${data.dueDate}T12:00:00`
-
     await api.post('/transactions', { ...data, dueDate: safeDate })
     await fetchTransactions()
   }
@@ -147,11 +143,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     setTransactions(prev => prev.filter(t => t.id !== id))
   }
 
-  // --- TOGGLE STATUS ---
   async function toggleTransactionStatus(t: Transaction) {
     const isNowPaid = !t.payment_date
     const now = new Date().toISOString()
-
     setTransactions(prev =>
       prev.map(item =>
         item.id === t.id
@@ -159,12 +153,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
           : item
       )
     )
-
     try {
       await api.patch(`/transactions/${t.id}`, { isPaid: isNowPaid })
-      if (isNowPaid) setTimeout(() => fetchTransactions(), 500)
-      else await fetchTransactions()
-
+      await fetchTransactions()
       toast.success(isNowPaid ? 'Conta paga!' : 'Pagamento cancelado.')
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
@@ -173,7 +164,6 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // --- GESTÃO DE SALÁRIOS ---
   const getSalaryIdentifier = (group: BudgetGroup) => {
     if (group === 'start_month')
       return { desc: 'Salário 01', day: 1, cat: 'Salário' }
@@ -187,10 +177,8 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     const now = new Date()
     const currentMonth = now.getMonth()
     const currentYear = now.getFullYear()
-
     const found = transactions.find(t => {
       const { month, year } = parseDateBr(t.due_date)
-
       return (
         t.description === desc &&
         month === currentMonth &&
@@ -204,38 +192,20 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   async function upsertSalary(group: BudgetGroup, amount: number) {
     const { desc, day, cat } = getSalaryIdentifier(group)
     const today = new Date()
-
-    // Gera data local YYYY-MM-DD
     const targetDate = new Date(today.getFullYear(), today.getMonth(), day)
-    const dateStr = formatDateToAPI(targetDate) // ex: "2026-01-01"
-    const safeDate = `${dateStr}T12:00:00` // Blindagem contra fuso horário
-
-    // Busca usando parse seguro
+    const safeDate = `${formatDateToAPI(targetDate)}T12:00:00`
     const currentMonth = today.getMonth()
     const currentYear = today.getFullYear()
-
     const existing = transactions.find(t => {
       const { month, year } = parseDateBr(t.due_date)
       return (
         t.description === desc && month === currentMonth && year === currentYear
       )
     })
-
     if (existing) {
-      if (amount === 0) {
-        await deleteTransaction(existing.id)
-      } else {
-        // Atualiza deletando e recriando para garantir consistência da data
-        await api.delete(`/transactions/${existing.id}`)
-        await api.post('/transactions', {
-          categoryId: CATEGORY_IDS[cat],
-          description: desc,
-          amount,
-          dueDate: safeDate,
-          isPaid: true,
-        })
-      }
-    } else if (amount > 0) {
+      await api.delete(`/transactions/${existing.id}`)
+    }
+    if (amount > 0) {
       await api.post('/transactions', {
         categoryId: CATEGORY_IDS[cat],
         description: desc,
@@ -244,6 +214,20 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         isPaid: true,
       })
     }
+    await fetchTransactions()
+  }
+
+  async function addFixedExpense({ name, amount, day }: AddFixedExpenseData) {
+    const today = new Date()
+    const targetDate = new Date(today.getFullYear(), today.getMonth(), day)
+    const safeDate = `${formatDateToAPI(targetDate)}T12:00:00`
+    await api.post('/transactions', {
+      categoryId: CATEGORY_IDS['Habitação'],
+      description: name,
+      amount,
+      dueDate: safeDate,
+      isPaid: false,
+    })
     await fetchTransactions()
   }
 
@@ -257,6 +241,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         toggleTransactionStatus,
         getSalaryForGroup,
         upsertSalary,
+        addFixedExpense,
         isLoading,
       }}
     >

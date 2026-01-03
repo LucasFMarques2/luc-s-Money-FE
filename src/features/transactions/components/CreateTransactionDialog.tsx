@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -33,7 +33,8 @@ import {
 
 import {
   transactionSchema,
-  type TransactionFormValues,
+  type TransactionFormInput,
+  type TransactionFormOutput,
 } from '../schemas/transactionSchema'
 import {
   useTransactions,
@@ -44,15 +45,16 @@ export const CreateTransactionDialog = () => {
   const [open, setOpen] = useState(false)
   const { createTransaction } = useTransactions()
 
-  const form = useForm<TransactionFormValues>({
-    resolver: zodResolver(transactionSchema),
-    defaultValues: {
-      description: '',
-      amount: 0,
-      category: '',
-      type: 'expense',
-    },
-  })
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const form = useForm<TransactionFormInput, any, TransactionFormOutput>({
+  resolver: zodResolver(transactionSchema),
+  defaultValues: {
+    description: '',
+    amount: 0,
+    category: '',
+    type: 'expense',
+  },
+})
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const selectedType = form.watch('type')
@@ -62,7 +64,7 @@ export const CreateTransactionDialog = () => {
     return selectedType === 'income' ? isIncome : !isIncome
   })
 
-  const onSubmit = async (data: TransactionFormValues) => {
+  const onSubmit: SubmitHandler<TransactionFormOutput> = async data => {
     try {
       const categoryId = CATEGORY_IDS[data.category]
 
@@ -80,13 +82,10 @@ export const CreateTransactionDialog = () => {
         isPaid: true,
       })
 
-      toast.success('Transação salva com sucesso!', {
-        description: `${data.description} no valor de R$ ${data.amount}`,
-      })
-
+      toast.success('Transação salva com sucesso!')
       setOpen(false)
       form.reset()
-    } catch (error) {
+    } catch {
       toast.error('Erro ao salvar transação')
     }
   }
@@ -99,6 +98,7 @@ export const CreateTransactionDialog = () => {
           Nova Transação
         </Button>
       </DialogTrigger>
+
       <DialogContent className='sm:max-w-106.25 bg-zinc-950 border-zinc-800 text-zinc-100'>
         <DialogHeader>
           <DialogTitle>Nova Transação</DialogTitle>
@@ -117,8 +117,8 @@ export const CreateTransactionDialog = () => {
                   <FormLabel>Descrição</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder='Ex: Supermercado'
                       {...field}
+                      placeholder='Ex: Supermercado'
                       className='bg-zinc-900 border-zinc-800'
                     />
                   </FormControl>
@@ -137,8 +137,7 @@ export const CreateTransactionDialog = () => {
                     <Input
                       type='number'
                       step='0.01'
-                      placeholder='0,00'
-                      {...field}
+                      value={typeof field.value === 'number' ? field.value : ''}
                       onChange={e => field.onChange(Number(e.target.value))}
                       className='bg-zinc-900 border-zinc-800'
                     />
@@ -156,11 +155,11 @@ export const CreateTransactionDialog = () => {
                   <FormItem>
                     <FormLabel>Tipo</FormLabel>
                     <Select
-                      onValueChange={val => {
-                        field.onChange(val)
+                      value={field.value}
+                      onValueChange={value => {
+                        field.onChange(value)
                         form.setValue('category', '')
                       }}
-                      defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger className='bg-zinc-900 border-zinc-800'>
@@ -183,7 +182,7 @@ export const CreateTransactionDialog = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger className='bg-zinc-900 border-zinc-800'>
                           <SelectValue placeholder='Categoria' />
@@ -217,3 +216,4 @@ export const CreateTransactionDialog = () => {
     </Dialog>
   )
 }
+
