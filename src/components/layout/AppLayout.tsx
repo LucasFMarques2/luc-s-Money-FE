@@ -12,7 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
 import { toast } from 'sonner'
 
-export const UserMenu = () => {
+export const AppLayout = () => {
   const { user, signOut } = useAuth()
   const [avatarUrl, setAvatarUrl] = useState<string>('')
 
