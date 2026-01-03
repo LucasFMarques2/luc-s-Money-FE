@@ -35,6 +35,7 @@ export interface CreateTransactionDTO {
 
 export type BudgetGroup = 'start_month' | 'mid_month' | 'end_month'
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const CATEGORY_IDS: Record<string, number> = {
   Salário: 1,
   Extra: 2,
@@ -165,6 +166,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       else await fetchTransactions()
 
       toast.success(isNowPaid ? 'Conta paga!' : 'Pagamento cancelado.')
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       await fetchTransactions()
       toast.error('Erro ao atualizar status')
