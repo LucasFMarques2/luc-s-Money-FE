@@ -1,83 +1,101 @@
-import { useState, useEffect } from 'react'
-import { LogOut, UserCircle, User } from 'lucide-react'
-import { useAuth } from '../../context/AuthContext'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu'
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
-import { toast } from 'sonner'
+import { FiDollarSign, FiHome, FiMenu, FiPieChart } from 'react-icons/fi'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 
-export const AppLayout = () => {
-  const { user, signOut } = useAuth()
-  const [avatarUrl, setAvatarUrl] = useState<string>('')
+import { cn } from '../../lib/utils'
+import { Button } from '../ui/button'
+import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet'
 
-  useEffect(() => {
-    const savedAvatar = localStorage.getItem('@finance:avatar')
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (savedAvatar) setAvatarUrl(savedAvatar)
-  }, [])
+import { UserMenu } from '../ui/UserMenu'
+import { NotificationBell } from '../ui/NotificationBell'
 
-  const handleUpdateAvatar = () => {
-    const url = window.prompt(
-      'Insira a URL da imagem para o avatar:',
-      avatarUrl
-    )
-    if (url !== null) {
-      localStorage.setItem('@finance:avatar', url)
-      setAvatarUrl(url)
-      toast.success('Avatar atualizado!')
-    }
-  }
+const sidebarItems = [
+  { icon: FiHome, label: 'Dashboard', href: '/' },
+  { icon: FiDollarSign, label: 'Transações', href: '/transactions' },
+  { icon: FiPieChart, label: 'Relatórios', href: '/reports' },
+]
+
+const SidebarContent = () => {
+  const location = useLocation()
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className='flex items-center gap-3 outline-none hover:opacity-80 transition'>
-          <div className='flex-col items-end hidden sm:flex'>
-            <span className='text-sm font-medium text-foreground'>
-              {user?.name}
-            </span>
-          </div>
-          <Avatar className='h-9 w-9 border border-border'>
-            <AvatarImage src={avatarUrl} />
-            <AvatarFallback className='bg-muted text-muted-foreground'>
-              <User className='h-5 w-5' />
-            </AvatarFallback>
-          </Avatar>
-        </button>
-      </DropdownMenuTrigger>
+    <div className='flex flex-col h-full bg-sidebar border-r border-sidebar-border'>
+      <div className='p-6 flex items-center gap-2 border-b border-sidebar-border'>
+        <div className='h-8 w-8 bg-emerald-500 rounded-lg flex items-center justify-center'>
+          <FiDollarSign className='text-white font-bold' />
+        </div>
+        <span className='text-xl font-bold text-sidebar-foreground tracking-tight'>
+          Luc's Money
+        </span>
+      </div>
 
-      <DropdownMenuContent
-        className='w-56 bg-zinc-950 border-zinc-800 text-zinc-100'
-        align='end'
-      >
-        <DropdownMenuLabel className='font-normal'>
-          <div className='flex flex-col space-y-1'>
-            <p className='text-sm font-medium leading-none'>{user?.name}</p>
-            <p className='text-xs leading-none text-zinc-400'>{user?.email}</p>
+      <nav className='flex-1 p-4 space-y-2 overflow-y-auto'>
+        {sidebarItems.map(item => {
+          const isActive = location.pathname === item.href
+          return (
+            <Link
+              key={item.href}
+              to={item.href}
+              className={cn(
+                'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all',
+                isActive
+                  ? 'bg-sidebar-accent text-emerald-400 border border-sidebar-border'
+                  : 'text-zinc-400 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
+              )}
+            >
+              <item.icon className='h-5 w-5' />
+              {item.label}
+            </Link>
+          )
+        })}
+      </nav>
+    </div>
+  )
+}
+
+export const AppLayout = () => {
+  return (
+    <div className='flex min-h-screen bg-background font-sans selection:bg-emerald-500/30'>
+      <aside className='hidden md:block w-64 h-screen sticky top-0'>
+        <SidebarContent />
+      </aside>
+
+      <main className='flex-1 flex flex-col min-w-0 overflow-hidden'>
+        <header className='h-16 border-b border-border flex items-center justify-between px-4 md:px-8 bg-background/50 backdrop-blur-xl sticky top-0 z-10'>
+          <div className='md:hidden'>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  className='text-muted-foreground'
+                >
+                  <FiMenu className='h-6 w-6' />
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side='left'
+                className='p-0 w-64 border-sidebar-border bg-sidebar'
+              >
+                <SidebarContent />
+              </SheetContent>
+            </Sheet>
           </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator className='bg-zinc-800' />
-        <DropdownMenuItem
-          onClick={handleUpdateAvatar}
-          className='cursor-pointer'
-        >
-          <UserCircle className='mr-2 h-4 w-4' />
-          <span>Alterar Avatar</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={signOut}
-          className='cursor-pointer text-rose-500 focus:text-rose-400'
-        >
-          <LogOut className='mr-2 h-4 w-4' />
-          <span>Sair</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+
+          <h2 className='text-lg font-semibold text-foreground hidden md:block'>
+            Visão Geral
+          </h2>
+          <div className='flex items-center gap-2 ml-auto'>
+            <NotificationBell />
+            <div className='h-6 w-px bg-border mx-2 hidden sm:block' />
+
+
+            <UserMenu />
+          </div>
+        </header>
+        <div className='flex-1 overflow-auto p-4 md:p-8 bg-background text-foreground'>
+          <Outlet />
+        </div>
+      </main>
+    </div>
   )
 }
