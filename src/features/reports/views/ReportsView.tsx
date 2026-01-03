@@ -429,7 +429,7 @@ export const ReportsView = () => {
           dayEnd={14}
         />
         <BudgetCard
-          title='Dia 15 (Serasa/Fixo)'
+          title='Dia 15 (Salário)'
           group='mid_month'
           dayStart={15}
           dayEnd={19}

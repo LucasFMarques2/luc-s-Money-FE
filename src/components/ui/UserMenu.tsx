@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { LogOut, UserCircle, User } from 'lucide-react'
+import { LogOut, UserCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import {
   DropdownMenu,
@@ -8,8 +8,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '../ui/dropdown-menu'
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
+} from './dropdown-menu'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from './avatar'
 import { toast } from 'sonner'
 
 export const UserMenu = () => {
@@ -27,6 +31,7 @@ export const UserMenu = () => {
       'Insira a URL da imagem para o avatar:',
       avatarUrl
     )
+
     if (url !== null) {
       localStorage.setItem('@finance:avatar', url)
       setAvatarUrl(url)
@@ -37,16 +42,11 @@ export const UserMenu = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className='flex items-center gap-3 outline-none hover:opacity-80 transition'>
-          <div className='flex-col items-end hidden sm:flex'>
-            <span className='text-sm font-medium text-foreground'>
-              {user?.name}
-            </span>
-          </div>
-          <Avatar className='h-9 w-9 border border-border'>
-            <AvatarImage src={avatarUrl} />
-            <AvatarFallback className='bg-muted text-muted-foreground'>
-              <User className='h-5 w-5' />
+        <button className='outline-none'>
+          <Avatar className='h-9 w-9 border border-zinc-800 hover:opacity-80 transition'>
+            <AvatarImage src={avatarUrl} alt={user?.name} />
+            <AvatarFallback className='bg-zinc-900 text-zinc-400'>
+              {user?.name?.substring(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
         </button>
@@ -63,16 +63,18 @@ export const UserMenu = () => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator className='bg-zinc-800' />
+
         <DropdownMenuItem
           onClick={handleUpdateAvatar}
-          className='cursor-pointer'
+          className='cursor-pointer focus:bg-zinc-900'
         >
           <UserCircle className='mr-2 h-4 w-4' />
           <span>Alterar Avatar</span>
         </DropdownMenuItem>
+
         <DropdownMenuItem
           onClick={signOut}
-          className='cursor-pointer text-rose-500 focus:text-rose-400'
+          className='cursor-pointer focus:bg-zinc-900 text-rose-500 focus:text-rose-400'
         >
           <LogOut className='mr-2 h-4 w-4' />
           <span>Sair</span>
